@@ -5,20 +5,26 @@
 #include <termios.h>
 #include <SDL2/SDL_mixer.h>
 
+#define NotesNUM 4
+
+void LoadGuitar(Mix_Chunk **Notes);
+void LoadDrums(Mix_Chunk **Notes);
+
 int main() {
 
     /* General Purpose Variables */
-    unsigned char teste = 'd';
+    unsigned char aux;
+    char buffer[5];
+    int i = 0;
 
     /* Initialzing SDL Mixer, frequency, Channels & Chunks */
     Mix_Init(MIX_INIT_MID);
     Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048);
 
-    Mix_Chunk *C  = Mix_LoadWAV("Samples/C.aif");
-    Mix_Chunk *G  = Mix_LoadWAV("Samples/G.aif");
-    Mix_Chunk *Am = Mix_LoadWAV("Samples/Am.aif");
-    Mix_Chunk *F  = Mix_LoadWAV("Samples/F.aif");
-
+    Mix_Chunk *Notes[NotesNUM];
+    //LoadGuitar(Notes);
+    LoadDrums(Notes);
+    
 	/* Variables for Serial Device */
 	int fd;
     struct termios config;
@@ -66,27 +72,44 @@ int main() {
         printf("Error while updating Device Configuration\n");
 
     //testando
-    while(teste != 'q') {
-        if(read(fd,&teste,1) > 0) {
-            //printf("received char: %c", teste);
-            if(teste == 'a')
-                Mix_PlayChannel(1, C, 0);
-            if(teste == 'b')
-                Mix_PlayChannel(1, G, 0);
-            if(teste == 'c')
-                Mix_PlayChannel(1, Am, 0);
-            if(teste == 'd')
-                Mix_PlayChannel(1, F, 0);
+    while(buffer[4] != '1') {
+        if(read(fd, &aux, 1) > 0)
+            buffer[i++] = aux;
+
+        if(i == 5) {
+            i = 0;
+            if(buffer[0] == '1')
+                Mix_PlayChannel(1, Notes[0], 0);
+            if(buffer[1] == '1')
+                Mix_PlayChannel(1, Notes[1], 0);
+            if(buffer[2] == '1')
+                Mix_PlayChannel(1, Notes[2], 0);
+            if(buffer[3] == '1')
+                Mix_PlayChannel(1, Notes[3], 0);
         }
     }
 
     /* Release Resources */
-    Mix_FreeChunk(C);
-    Mix_FreeChunk(G);
-    Mix_FreeChunk(Am);
-    Mix_FreeChunk(F);
+    Mix_FreeChunk(Notes[0]);
+    Mix_FreeChunk(Notes[1]);
+    Mix_FreeChunk(Notes[2]);
+    Mix_FreeChunk(Notes[3]);
     Mix_CloseAudio();
     Mix_Quit();
     close(fd);
 	return 0;
+}
+
+void LoadGuitar(Mix_Chunk **Notes) {
+    Notes[0] = Mix_LoadWAV("Samples/C.aif");
+    Notes[1] = Mix_LoadWAV("Samples/G.aif");
+    Notes[2] = Mix_LoadWAV("Samples/Am.aif");
+    Notes[3] = Mix_LoadWAV("Samples/F.aif");
+}
+
+void LoadDrums(Mix_Chunk **Notes) {
+    Notes[0] = Mix_LoadWAV("Samples/drum1.aif");
+    Notes[1] = Mix_LoadWAV("Samples/drum2.aif");
+    Notes[2] = Mix_LoadWAV("Samples/drum3.aif");
+    Notes[3] = Mix_LoadWAV("Samples/drum4.aif");
 }
