@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <termios.h>
+#include <omp.h>
 #include <SDL2/SDL_mixer.h>
 
 #define NotesNUM 4
@@ -16,6 +17,7 @@ int main() {
     /* General Purpose Variables */
     unsigned char aux;
     char buffer[5];
+    char instrument = '0';
     int i = 0;
 
     /* Initialzing SDL Mixer, frequency, Channels & Chunks */
@@ -77,20 +79,39 @@ int main() {
         printf("Error while updating Device Configuration\n");
 
     //testando
-    while(buffer[4] != '1') {
-        if(read(fd, &aux, 1) > 0)
-            buffer[i++] = aux;
-
-        if(i == 5) {
-            i = 0;
-            if(buffer[0] == '1')
-                Mix_PlayChannel(1, Notes[0], 0);
-            if(buffer[1] == '1')
-                Mix_PlayChannel(1, Notes[1], 0);
-            if(buffer[2] == '1')
-                Mix_PlayChannel(1, Notes[2], 0);
-            if(buffer[3] == '1')
-                Mix_PlayChannel(1, Notes[3], 0);
+    #pragma omp parallel sections num_threads(2)
+    {
+        #pragma omp section
+        {
+            while(buffer[4] != '1') {
+                scanf("%c", &instrument);
+                if(instrument == 'g'){
+                    FreeAudio(Notes);
+                    LoadGuitar(Notes);
+                }
+                if(instrument == 'd'){
+                    FreeAudio(Notes);
+                    LoadDrums(Notes);
+                }
+            }
+        }
+        #pragma omp section
+        {
+            while(buffer[4] != '1') {
+                if(read(fd, &aux, 1) > 0)
+                buffer[i++] = aux;
+                if(i == 5) {
+                    i = 0;
+                    if(buffer[0] == '1')
+                        Mix_PlayChannel(1, Notes[0], 0);
+                    if(buffer[1] == '1')
+                        Mix_PlayChannel(1, Notes[1], 0);
+                    if(buffer[2] == '1')
+                        Mix_PlayChannel(1, Notes[2], 0);
+                    if(buffer[3] == '1')
+                        Mix_PlayChannel(1, Notes[3], 0);
+                }
+            }
         }
     }
 
