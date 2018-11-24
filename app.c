@@ -9,6 +9,7 @@
 
 void LoadGuitar(Mix_Chunk **Notes);
 void LoadDrums(Mix_Chunk **Notes);
+void FreeAudio(Mix_Chunk **Notes);
 
 int main() {
 
@@ -29,6 +30,10 @@ int main() {
 	int fd;
     struct termios config;
 	const char *arduino = "/dev/ttyACM0";
+
+    /* Variables for Altera FPGA */
+    int fpga;
+    const char *altera = "/dev/de2i150_altera";
 
 	/* Opening Serial Device, Flags & Checking for Errors.
 
@@ -90,10 +95,7 @@ int main() {
     }
 
     /* Release Resources */
-    Mix_FreeChunk(Notes[0]);
-    Mix_FreeChunk(Notes[1]);
-    Mix_FreeChunk(Notes[2]);
-    Mix_FreeChunk(Notes[3]);
+    FreeAudio(Notes);
     Mix_CloseAudio();
     Mix_Quit();
     close(fd);
@@ -112,4 +114,9 @@ void LoadDrums(Mix_Chunk **Notes) {
     Notes[1] = Mix_LoadWAV("Samples/drum2.aif");
     Notes[2] = Mix_LoadWAV("Samples/drum3.aif");
     Notes[3] = Mix_LoadWAV("Samples/drum4.aif");
+}
+
+void FreeAudio(Mix_Chunk **Notes) {
+    for(int i = 0; i < NotesNUM; i++)
+        Mix_FreeChunk(Notes[i]);
 }
