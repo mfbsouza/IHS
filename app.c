@@ -6,7 +6,13 @@
 #include <omp.h>
 #include <SDL2/SDL_mixer.h>
 
-#define NotesNUM 4
+#define NotesNUM    4
+#define DISPLAY_L   1
+#define DISPLAY_R   2
+#define SWITCHES    3
+#define PUSHBOTTOM  4
+#define GREENLEDS   5
+#define REDLEDS     6
 
 void LoadGuitar(Mix_Chunk **Notes);
 void LoadDrums(Mix_Chunk **Notes);
@@ -36,6 +42,9 @@ int main() {
     /* Variables for Altera FPGA */
     int fpga;
     const char *altera = "/dev/de2i150_altera";
+    //fpga = open(altera, O_RDWR);
+    //if(fpga == -1)
+    //    printf("Failed to Open Device: %s\n", altera);
 
 	/* Opening Serial Device, Flags & Checking for Errors.
 
