@@ -12,7 +12,7 @@ PWD := $(shell pwd)
 
 # Flags
 CXXFLAGS += -Wall -fopenmp
-LDFLAGS += -Llib -lSDL2 -lSDL2_mixer -fopenmp
+LDFLAGS += -L/usr/local/lib -lSDL2 -lSDL2_mixer -fopenmp
 LDLIBS += -lm
 
 .PHONY: all driver move clean
