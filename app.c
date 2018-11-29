@@ -4,15 +4,37 @@
 #include <fcntl.h>
 #include <termios.h>
 #include <omp.h>
+#include <string.h>
 #include <SDL2/SDL_mixer.h>
 
-#define NotesNUM    4
+#define NotesNUM    7
 #define DISPLAY_L   1
 #define DISPLAY_R   2
 #define SWITCHES    3
 #define PUSHBOTTOM  4
 #define GREENLEDS   5
 #define REDLEDS     6
+
+// define hex codes for 7-segments display
+#define d7_0 0x40
+#define d7_1 0x79
+#define d7_2 0x24
+#define d7_3 0x30
+#define d7_4 0x19
+#define d7_5 0x12
+#define d7_6 0x02
+#define d7_7 0x78
+#define d7_8 0x00
+#define d7_9 0x18
+#define d7_A 0x08
+#define d7_B 0x00
+#define d7_C 0x46
+#define d7_D 0x40
+#define d7_E 0x06
+#define d7_F 0x0E
+#define d7_G 0x42
+#define d7_empty 0x7F
+
 
 void LoadGuitar(Mix_Chunk **Notes);
 void LoadDrums(Mix_Chunk **Notes);
@@ -31,8 +53,8 @@ int main() {
     Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048);
 
     Mix_Chunk *Notes[NotesNUM];
-    //LoadGuitar(Notes);
-    LoadDrums(Notes);
+    LoadGuitar(Notes);
+    //LoadDrums(Notes);
     
 	/* Variables for Serial Device */
 	int fd;
@@ -106,19 +128,25 @@ int main() {
         }
         #pragma omp section
         {
-            while(buffer[4] != '1') {
+            while(!strcmp(buffer,"00001")) {
                 if(read(fd, &aux, 1) > 0)
                 buffer[i++] = aux;
                 if(i == 5) {
                     i = 0;
-                    if(buffer[0] == '1')
+                    if(strcmp(buffer,"10000"))
                         Mix_PlayChannel(1, Notes[0], 0);
-                    if(buffer[1] == '1')
+                    if(strcmp(buffer,"01000"))
                         Mix_PlayChannel(1, Notes[1], 0);
-                    if(buffer[2] == '1')
+                    if(strcmp(buffer,"00100"))
                         Mix_PlayChannel(1, Notes[2], 0);
-                    if(buffer[3] == '1')
+                    if(strcmp(buffer,"00010"))
                         Mix_PlayChannel(1, Notes[3], 0);
+                    if(strcmp(buffer,"11000"))
+                        Mix_PlayChannel(1, Notes[4], 0);
+                    if(strcmp(buffer,"01100"))
+                        Mix_PlayChannel(1, Notes[5], 0);
+                    if(strcmp(buffer,"00110"))
+                        Mix_PlayChannel(1, Notes[6], 0);
                 }
             }
         }
@@ -133,10 +161,13 @@ int main() {
 }
 
 void LoadGuitar(Mix_Chunk **Notes) {
-    Notes[0] = Mix_LoadWAV("Samples/C.aif");
-    Notes[1] = Mix_LoadWAV("Samples/G.aif");
-    Notes[2] = Mix_LoadWAV("Samples/Am.aif");
-    Notes[3] = Mix_LoadWAV("Samples/F.aif");
+    Notes[0] = Mix_LoadWAV("Samples/C.aif"); // dó
+    Notes[1] = Mix_LoadWAV("Samples/D.aif"); // ré
+    Notes[2] = Mix_LoadWAV("Samples/E.aif"); // mi
+    Notes[3] = Mix_LoadWAV("Samples/F.aif"); // fá
+    Notes[4] = Mix_LoadWAV("Samples/G.aif"); // sol
+    Notes[5] = Mix_LoadWAV("Samples/A.aif"); // lá
+    Notes[6] = Mix_LoadWAV("Samples/B.aif"); // si
 }
 
 void LoadDrums(Mix_Chunk **Notes) {
@@ -147,6 +178,7 @@ void LoadDrums(Mix_Chunk **Notes) {
 }
 
 void FreeAudio(Mix_Chunk **Notes) {
-    for(int i = 0; i < NotesNUM; i++)
+    int i;
+    for(i = 0; i < NotesNUM; i++)
         Mix_FreeChunk(Notes[i]);
 }
