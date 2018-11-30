@@ -10,7 +10,7 @@
 #define DISPLAY_L   1
 #define DISPLAY_R   2
 #define SWITCHES    3
-#define PUSHBOTTOM  4
+#define PUSHBUTTON  4
 #define GREENLEDS   5
 #define REDLEDS     6
 

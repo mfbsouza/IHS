@@ -15,15 +15,18 @@ MODULE_AUTHOR("Matheus Souza");
 #define DISPLAY_L   1
 #define DISPLAY_R   2
 #define SWITCHES    3
-#define PUSHBOTTOM  4
+#define PUSHBUTTON  4
 #define GREENLEDS   5
 #define REDLEDS     6
 
 /* General Purpose Variables for Driver */
+static uint32_t last_pbuttons = 15;
+static uint32_t last_switches = 0;
 static uint32_t data;
+static int flag = 0;
 static int access_count = 0;
 // pointers to FPGA IO hardware
-static void   *display_r, *switches_, *p_bottons;
+static void   *display_r, *switches_, *p_buttons;
 static void   *display_l, *green_leds, *red_leds;
 
 /* --- CHAR DEVICE INFORMATION & FUNCTIONS --- */
@@ -65,9 +68,12 @@ static ssize_t dev_read(struct file *filep, char *buf, size_t opt, loff_t *off) 
             break;
         case SWITCHES:
             data = ioread32(switches_);
+            if(data != last_data){
+
+            }
             break;
-        case PUSHBOTTOM:
-            data = ioread32(p_bottons);
+        case PUSHBUTTON:
+            data = ioread32(p_buttons);
             break;
         case GREENLEDS:
             data = ioread32(green_leds);
@@ -77,16 +83,23 @@ static ssize_t dev_read(struct file *filep, char *buf, size_t opt, loff_t *off) 
             break;
         default:
             printk(KERN_ALERT "Invalid Option from Read().\n");
+            return -1; //send error to user space
     }
-    // send data to the user space
-    raw_copy_to_user(buf, &data, sizeof(uint32_t));
-    return 4;
+
+    if(data != last_data) {
+        //send data to user space
+        copy_to_user(buf, &data, sizeof(uint32_t));
+        return 4; //red 4 bytes
+    } else {
+        last_data = data;
+        return 0; //red 0 bytes
+    }
 }
 
 static ssize_t dev_write(struct file *filep, const char *buf, size_t opt, loff_t *off) {
     data = 0;
     // get data from the user space to kernel space
-    raw_copy_from_user(&data, buf, sizeof(uint32_t));
+    copy_from_user(&data, buf, sizeof(uint32_t));
 
     switch(opt) {
         case DISPLAY_L:
@@ -103,6 +116,7 @@ static ssize_t dev_write(struct file *filep, const char *buf, size_t opt, loff_t
             break;
         default:
             printk(KERN_ALERT "Invalid Option from Write().\n");
+            return -1;
     }
     return 4;
 }
@@ -149,11 +163,11 @@ static int pci_probe(struct pci_dev *dev, const struct pci_device_id *id) {
     printk(KERN_ALERT "PCI device resources start at bar 0: %lx\n", resource);
 
     display_r  = ioremap_nocache(resource + 0XC000, 0x20);
-    display_l  = ioremap_nocache(resource + 0XC040, 0x20);
-    switches_  = ioremap_nocache(resource + 0XC020, 0x20);
-    p_bottons  = ioremap_nocache(resource + 0XC060, 0x20);
-    green_leds = ioremap_nocache(resource + 0XC0C0, 0x20);
-    red_leds   = ioremap_nocache(resource + 0XC0A0, 0x20);
+    display_l  = ioremap_nocache(resource + 0XC140, 0x20);
+    switches_  = ioremap_nocache(resource + 0XC040, 0x20);
+    p_buttons  = ioremap_nocache(resource + 0XC080, 0x20);
+    green_leds = ioremap_nocache(resource + 0XC0F0, 0x20);
+    red_leds   = ioremap_nocache(resource + 0XC0B0, 0x20);
 
     return 0;
 }
@@ -162,7 +176,7 @@ static void pci_remove(struct pci_dev *dev) {
     iounmap(display_r);
     iounmap(display_l);
     iounmap(switches_);
-    iounmap(p_bottons);
+    iounmap(p_buttons);
     iounmap(green_leds);
     iounmap(red_leds);
 }
