@@ -20,7 +20,7 @@ MODULE_AUTHOR("Matheus Souza");
 #define REDLEDS     6
 
 /* General Purpose Variables for Driver */
-static uint32_t last_pbuttons = 15;
+static uint32_t last_pbuttons = 0;
 static uint32_t last_switches = 0;
 static uint32_t data;
 static int flag = 0;
@@ -68,12 +68,17 @@ static ssize_t dev_read(struct file *filep, char *buf, size_t opt, loff_t *off) 
             break;
         case SWITCHES:
             data = ioread32(switches_);
-            if(data != last_data){
-
+            if(data != last_switches) {
+                flag = 1;
             }
+            last_switches = data;
             break;
         case PUSHBUTTON:
             data = ioread32(p_buttons);
+            if(data != last_pbuttons && data != 15) {
+                flag = 1;
+            }
+            last_pbuttons = data;
             break;
         case GREENLEDS:
             data = ioread32(green_leds);
@@ -83,16 +88,16 @@ static ssize_t dev_read(struct file *filep, char *buf, size_t opt, loff_t *off) 
             break;
         default:
             printk(KERN_ALERT "Invalid Option from Read().\n");
-            return -1; //send error to user space
+            return -1; // send error to user space
     }
 
-    if(data != last_data) {
-        //send data to user space
+    if(flag == 1) {
+        // send data to user space
         copy_to_user(buf, &data, sizeof(uint32_t));
-        return 4; //red 4 bytes
+        flag = 0; // reset flag
+        return 4; // red 4 bytes
     } else {
-        last_data = data;
-        return 0; //red 0 bytes
+        return 0; // red 0 bytes
     }
 }
 
