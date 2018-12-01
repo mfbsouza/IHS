@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <stdint.h>
 #include <fcntl.h>
+#include <math.h>
 #include <time.h>
 #include <termios.h>
 #include <omp.h>
@@ -41,6 +42,10 @@ void LoadGuitar(Mix_Chunk **Notes);
 void LoadDrums(Mix_Chunk **Notes);
 void FreeAudio(Mix_Chunk **Notes);
 void delay(int num_of_secs);
+void red_led_on(int fpga, int n);
+void red_led_animation(int fpga, int x, int y);
+
+extern int int_to_d7(int);
 
 int main() {
 
@@ -49,6 +54,7 @@ int main() {
     Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048);
 
     /* General Purpose Variables */
+    int nl = 0;
     Mix_Chunk *Notes[NotesNUM];
     Mix_Chunk *FPGAdrums[NotesNUM];
     LoadDrums(FPGAdrums);
@@ -166,18 +172,22 @@ int main() {
                     if(buffer[0] == '1'){
                         Mix_PlayChannel(1, Notes[0], 0);
                         write(fpga, &hex_c, DISPLAY_R);
+                        red_led_animation(fpga, 1, 9);
                     }
                     if(buffer[1] == '1'){
                         Mix_PlayChannel(1, Notes[1], 0);
                         write(fpga, &hex_g, DISPLAY_R);
+                        red_led_animation(fpga, 3, 12);
                     }
                     if(buffer[2] == '1'){
                         Mix_PlayChannel(1, Notes[2], 0);
                         write(fpga, &hex_a, DISPLAY_R);
+                        red_led_animation(fpga, 2, 15);
                     }
                     if(buffer[3] == '1'){
                         Mix_PlayChannel(1, Notes[3], 0);
                         write(fpga, &hex_f, DISPLAY_R);
+                        red_led_animation(fpga, 1, 8);
                     }
                     if(buffer[4] == '1'){
                         delay_msec += 100;
@@ -185,21 +195,26 @@ int main() {
                 }
             }
         }
-        #pragma omp section
-        {
-            while(read_var != 1) {
-                if(delay_msec == 1100){
-                    delay_msec = 100;
-                }
-                if(teste == 131072){
-                        teste = 1;
-                    } else {
-                        teste = teste << 1;
-                    }
-                    write(fpga, &teste, REDLEDS);
-                    delay(delay_msec);
-            }
-        }
+        // #pragma omp section
+        // {
+        //     while(read_var != 1) {
+        //         // scanf("%d", &nl);
+        //         // teste = red_led_on(nl);
+        //         // printf("%d/n", teste);
+        //         // write(fpga, &teste, REDLEDS);
+
+        //         // if(delay_msec == 1100){
+        //         //     delay_msec = 100;
+        //         // }
+        //         // if(teste == 131072){
+        //         //         teste = 1;
+        //         //     } else {
+        //         //         teste = teste << 1;
+        //         //     }
+        //         //     write(fpga, &teste, REDLEDS);
+        //         //     delay(delay_msec);
+        //     }
+        // }
     }
 
     printf("fechando o programa...\n");
@@ -239,4 +254,24 @@ void delay(int num_of_secs) {
     clock_t start_time = clock();
     while(clock() < start_time + milli_sec)
         ;
+}
+
+void red_led_on(int fpga, int n){
+    n = 18 - n;
+    int a = 262143;
+    a = a << n;
+    write(fpga, &a, REDLEDS);
+}
+
+void red_led_animation(int fpga, int x, int y){
+    int i;
+    int delay_time = 1000 / (2*(y-x));
+    for (i=x; i<=y; i++){
+        red_led_on(fpga, i);
+        delay(delay_time);
+    }
+    for (i=y; i>=x; i--){
+        red_led_on(fpga, i);
+        delay(delay_time);
+    }
 }
