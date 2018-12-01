@@ -1,13 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <stdint.h>
 #include <fcntl.h>
 #include <termios.h>
 #include <omp.h>
-#include <string.h>
 #include <SDL2/SDL_mixer.h>
 
-#define NotesNUM    7
+#define NotesNUM    4
 #define DISPLAY_L   1
 #define DISPLAY_R   2
 #define SWITCHES    3
@@ -42,31 +42,36 @@ void FreeAudio(Mix_Chunk **Notes);
 
 int main() {
 
-    /* General Purpose Variables */
-    unsigned char aux;
-    char buffer[5];
-    char instrument = '0';
-    int i = 0;
-
     /* Initialzing SDL Mixer, frequency, Channels & Chunks */
     Mix_Init(MIX_INIT_MID);
     Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048);
 
+    /* General Purpose Variables */
     Mix_Chunk *Notes[NotesNUM];
+    Mix_Chunk *FPGAdrums[NotesNUM];
+    LoadDrums(FPGAdrums);
     LoadGuitar(Notes);
     //LoadDrums(Notes);
     
 	/* Variables for Serial Device */
-	int fd;
+	int fd, i = 0;
     struct termios config;
+    char buffer[5];
+    unsigned char aux;
 	const char *arduino = "/dev/ttyACM0";
 
     /* Variables for Altera FPGA */
     int fpga;
     const char *altera = "/dev/de2i150_altera";
-    //fpga = open(altera, O_RDWR);
-    //if(fpga == -1)
-    //    printf("Failed to Open Device: %s\n", altera);
+    const uint32_t mem_trash = 0;
+    uint32_t read_var = 0;
+
+    /* Opening & Setting Up FPGA */
+    fpga = open(altera, O_RDWR);
+    if(fpga == -1)
+        printf("Failed to Open Device: %s\n", altera);
+    //first right is buggy so we write something to skip it
+    write(fpga, &mem_trash, DISPLAY_L);
 
 	/* Opening Serial Device, Flags & Checking for Errors.
 
@@ -114,44 +119,61 @@ int main() {
     {
         #pragma omp section
         {
-            while(buffer[4] != '1') {
-                scanf("%c", &instrument);
-                if(instrument == 'g'){
+            while(read_var != 1) {
+                if(read(fpga, &read_var, PUSHBUTTON)){
+                    if(read_var == 14)
+                        Mix_PlayChannel(2, FPGAdrums[3], 0);
+                    if(read_var == 13)
+                        Mix_PlayChannel(2, FPGAdrums[2], 0);
+                    if(read_var == 11)
+                        Mix_PlayChannel(2, FPGAdrums[1], 0);
+                    if(read_var == 7)
+                        Mix_PlayChannel(2, FPGAdrums[0], 0);
+                }
+
+                if(read(fpga, &read_var, SWITCHES) && read_var == 4){
+                    printf("carregando Guitarra...\n");
                     FreeAudio(Notes);
                     LoadGuitar(Notes);
+                    printf("Guitarra carregada com sucesso\n");
                 }
-                if(instrument == 'd'){
+                if(read(fpga, &read_var, SWITCHES) && read_var == 8){
+                    printf("carregando bateria...\n");
                     FreeAudio(Notes);
                     LoadDrums(Notes);
+                    printf("Bateria carregada com sucesso\n");
                 }
             }
         }
         #pragma omp section
         {
-            while(!strcmp(buffer,"00001")) {
+            while(read_var != 1) {
                 if(read(fd, &aux, 1) > 0)
-                buffer[i++] = aux;
+                    buffer[i++] = aux;
                 if(i == 5) {
                     i = 0;
-                    if(strcmp(buffer,"10000"))
+                    if(buffer[0] == '1'){
                         Mix_PlayChannel(1, Notes[0], 0);
-                    if(strcmp(buffer,"01000"))
+                        printf("nota 0\n");
+                    }
+                    if(buffer[1] == '1'){
                         Mix_PlayChannel(1, Notes[1], 0);
-                    if(strcmp(buffer,"00100"))
+                        printf("nota 1\n");
+                    }
+                    if(buffer[2] == '1'){
                         Mix_PlayChannel(1, Notes[2], 0);
-                    if(strcmp(buffer,"00010"))
+                        printf("nota 2\n");
+                    }
+                    if(buffer[3] == '1'){
                         Mix_PlayChannel(1, Notes[3], 0);
-                    if(strcmp(buffer,"11000"))
-                        Mix_PlayChannel(1, Notes[4], 0);
-                    if(strcmp(buffer,"01100"))
-                        Mix_PlayChannel(1, Notes[5], 0);
-                    if(strcmp(buffer,"00110"))
-                        Mix_PlayChannel(1, Notes[6], 0);
+                        printf("nota 3\n");
+                    }
                 }
             }
         }
     }
 
+    printf("fechando o programa...\n");
     /* Release Resources */
     FreeAudio(Notes);
     Mix_CloseAudio();
@@ -165,9 +187,9 @@ void LoadGuitar(Mix_Chunk **Notes) {
     Notes[1] = Mix_LoadWAV("Samples/D.aif"); // ré
     Notes[2] = Mix_LoadWAV("Samples/E.aif"); // mi
     Notes[3] = Mix_LoadWAV("Samples/F.aif"); // fá
-    Notes[4] = Mix_LoadWAV("Samples/G.aif"); // sol
-    Notes[5] = Mix_LoadWAV("Samples/A.aif"); // lá
-    Notes[6] = Mix_LoadWAV("Samples/B.aif"); // si
+    //Notes[4] = Mix_LoadWAV("Samples/G.aif"); // sol
+    //Notes[5] = Mix_LoadWAV("Samples/A.aif"); // lá
+    //Notes[6] = Mix_LoadWAV("Samples/B.aif"); // si
 }
 
 void LoadDrums(Mix_Chunk **Notes) {
