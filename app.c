@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <stdint.h>
 #include <fcntl.h>
+#include <time.h>
 #include <termios.h>
 #include <omp.h>
 #include <SDL2/SDL_mixer.h>
@@ -39,6 +40,7 @@
 void LoadGuitar(Mix_Chunk **Notes);
 void LoadDrums(Mix_Chunk **Notes);
 void FreeAudio(Mix_Chunk **Notes);
+void delay(int num_of_secs);
 
 int main() {
 
@@ -54,7 +56,7 @@ int main() {
     //LoadDrums(Notes);
     
 	/* Variables for Serial Device */
-	int fd, i = 0;
+	int fd, i = 0, delay_msec = 500;
     struct termios config;
     char buffer[5];
     unsigned char aux;
@@ -63,8 +65,9 @@ int main() {
     /* Variables for Altera FPGA */
     int fpga;
     const char *altera = "/dev/de2i150_altera";
-    const uint32_t mem_trash = 0;
-    uint32_t read_var = 0;
+    const uint32_t mem_trash = 0, hex_c = 0xFFFFFF46, hex_a = 0xFFFFFF08, hex_g = 0xFFFFFF42, hex_f = 0xFFFFFF0E;
+    const uint32_t led_1 = 3 , led_2 = 12, led_3 = 48, led_4 = 192;
+    uint32_t teste = 1, read_var = 0;
 
     /* Opening & Setting Up FPGA */
     fpga = open(altera, O_RDWR);
@@ -72,6 +75,7 @@ int main() {
         printf("Failed to Open Device: %s\n", altera);
     //first right is buggy so we write something to skip it
     write(fpga, &mem_trash, DISPLAY_L);
+    write(fpga, &mem_trash, GREENLEDS);
 
 	/* Opening Serial Device, Flags & Checking for Errors.
 
@@ -115,22 +119,29 @@ int main() {
         printf("Error while updating Device Configuration\n");
 
     //testando
-    #pragma omp parallel sections num_threads(2)
+    #pragma omp parallel sections num_threads(3)
     {
         #pragma omp section
         {
             while(read_var != 1) {
                 if(read(fpga, &read_var, PUSHBUTTON)){
-                    if(read_var == 14)
+                    if(read_var == 14){
                         Mix_PlayChannel(2, FPGAdrums[3], 0);
-                    if(read_var == 13)
+                        write(fpga, &led_1, GREENLEDS);
+                    }
+                    if(read_var == 13){
                         Mix_PlayChannel(2, FPGAdrums[2], 0);
-                    if(read_var == 11)
+                        write(fpga, &led_2, GREENLEDS);
+                    }
+                    if(read_var == 11){
                         Mix_PlayChannel(2, FPGAdrums[1], 0);
-                    if(read_var == 7)
+                        write(fpga, &led_3, GREENLEDS);
+                    }
+                    if(read_var == 7){
                         Mix_PlayChannel(2, FPGAdrums[0], 0);
+                        write(fpga, &led_4, GREENLEDS);
+                    }
                 }
-
                 if(read(fpga, &read_var, SWITCHES) && read_var == 4){
                     printf("carregando Guitarra...\n");
                     FreeAudio(Notes);
@@ -154,21 +165,39 @@ int main() {
                     i = 0;
                     if(buffer[0] == '1'){
                         Mix_PlayChannel(1, Notes[0], 0);
-                        printf("nota 0\n");
+                        write(fpga, &hex_c, DISPLAY_R);
                     }
                     if(buffer[1] == '1'){
                         Mix_PlayChannel(1, Notes[1], 0);
-                        printf("nota 1\n");
+                        write(fpga, &hex_g, DISPLAY_R);
                     }
                     if(buffer[2] == '1'){
                         Mix_PlayChannel(1, Notes[2], 0);
-                        printf("nota 2\n");
+                        write(fpga, &hex_a, DISPLAY_R);
                     }
                     if(buffer[3] == '1'){
                         Mix_PlayChannel(1, Notes[3], 0);
-                        printf("nota 3\n");
+                        write(fpga, &hex_f, DISPLAY_R);
+                    }
+                    if(buffer[4] == '1'){
+                        delay_msec += 100;
                     }
                 }
+            }
+        }
+        #pragma omp section
+        {
+            while(read_var != 1) {
+                if(delay_msec == 1100){
+                    delay_msec = 100;
+                }
+                if(teste == 131072){
+                        teste = 1;
+                    } else {
+                        teste = teste << 1;
+                    }
+                    write(fpga, &teste, REDLEDS);
+                    delay(delay_msec);
             }
         }
     }
@@ -183,10 +212,10 @@ int main() {
 }
 
 void LoadGuitar(Mix_Chunk **Notes) {
-    Notes[0] = Mix_LoadWAV("Samples/C.aif"); // dó
-    Notes[1] = Mix_LoadWAV("Samples/D.aif"); // ré
-    Notes[2] = Mix_LoadWAV("Samples/E.aif"); // mi
-    Notes[3] = Mix_LoadWAV("Samples/F.aif"); // fá
+    Notes[0] = Mix_LoadWAV("Samples/C.aif");
+    Notes[1] = Mix_LoadWAV("Samples/G.aif");
+    Notes[2] = Mix_LoadWAV("Samples/Am.aif");
+    Notes[3] = Mix_LoadWAV("Samples/F.aif");
     //Notes[4] = Mix_LoadWAV("Samples/G.aif"); // sol
     //Notes[5] = Mix_LoadWAV("Samples/A.aif"); // lá
     //Notes[6] = Mix_LoadWAV("Samples/B.aif"); // si
@@ -203,4 +232,11 @@ void FreeAudio(Mix_Chunk **Notes) {
     int i;
     for(i = 0; i < NotesNUM; i++)
         Mix_FreeChunk(Notes[i]);
+}
+
+void delay(int num_of_secs) {
+    int milli_sec = 1000*num_of_secs;
+    clock_t start_time = clock();
+    while(clock() < start_time + milli_sec)
+        ;
 }
