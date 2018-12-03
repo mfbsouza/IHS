@@ -19,6 +19,7 @@
 /* Functions */
 void LoadGuitar(Mix_Chunk **Notes);
 void LoadDrums(Mix_Chunk **Notes);
+void LoadBass(Mix_Chunk **Notes);
 void FreeAudio(Mix_Chunk **Notes);
 void LoadDrumsFPGA(Mix_Chunk **Notes);
 void FreeAudioFPGA(Mix_Chunk **Notes);
@@ -35,12 +36,12 @@ int main() {
     Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048);
 
     /* General Purpose Variables */
-    char first_time, red_something = 0, animation = 0;
+    char first_time, red_something = 0, animation = 0, instrument = 2;
     Mix_Chunk *Notes[NotesNUM];
     Mix_Chunk *FPGAdrums[4];
     // loading audios chuncks into the memory
     LoadDrumsFPGA(FPGAdrums);
-    LoadGuitar(Notes);
+    LoadBass(Notes);
     
 	/* Variables for Serial Device */
 	int fd, i = 0;
@@ -52,7 +53,7 @@ int main() {
     /* Variables for Altera FPGA */
     int fpga;
     const char *altera = "/dev/de2i150_altera";
-    const uint32_t gabi = 0x4208FF4F;
+    const uint32_t gabi = 0x4208004F;
     const uint32_t mem_trash = 0, hex_c = 0xFFFFFF46, hex_a = 0xFFFFFF08, hex_g = 0xFFFFFF42, hex_f = 0xFFFFFF0E;
     const uint32_t led_1 = 3 , led_2 = 12, led_3 = 48, led_4 = 192;
     // read variables
@@ -118,7 +119,7 @@ int main() {
 
     printf("Done. Ready to go!\n");
     // Threads main loop
-    #pragma omp parallel sections num_threads(2)
+    #pragma omp parallel sections num_threads(3)
     {
         // FPGA Thread
         #pragma omp section
@@ -153,52 +154,25 @@ int main() {
                     FreeAudio(Notes);
                     LoadGuitar(Notes);
                     printf("Done loading\n");
+                    instrument = 1;
                 }
                 if(red_something == 1 && switches_rd == 8){
                     printf("Loading Drums...\n");
                     FreeAudio(Notes);
                     LoadDrums(Notes);
                     printf("Done Loading\n");
+                    instrument = 2;
                 }
-
-                // Arduino
-                if(read(fd, &aux, 1) > 0)
-                    buffer[i++] = aux;
-                if(i == 5) {
-                    i = 0;
-                    animation = 1;
-                    if(buffer[0] == '1'){
-                        Mix_PlayChannel(1, Notes[0], 0);
-                        write(fpga, &hex_c, DISPLAY_R);
-                        //red_led_animation(fpga, 1, 9);
-                        //red_led_on(fpga, 9);
-                    }
-                    if(buffer[1] == '1'){
-                        Mix_PlayChannel(1, Notes[1], 0);
-                        write(fpga, &hex_g, DISPLAY_R);
-                        //red_led_animation(fpga, 3, 12);
-                    }
-                    if(buffer[2] == '1'){
-                        Mix_PlayChannel(1, Notes[2], 0);
-                        write(fpga, &hex_a, DISPLAY_R);
-                        animation = 2;
-                        //red_led_animation(fpga, 2, 15);
-                    }
-                    if(buffer[3] == '1'){
-                        Mix_PlayChannel(1, Notes[3], 0);
-                        write(fpga, &hex_f, DISPLAY_R);
-                        //red_led_animation(fpga, 1, 8);
-                    }
-                    if(buffer[4] == '1'){
-                        Mix_PlayChannel(1, Notes[4], 0);
-                        write(fpga, &hex_f, DISPLAY_R);
-                        //red_led_animation(fpga, 0, 10);
-                    }
-                    //write(fpga, &mem_trash, REDLEDS);
-                }
+                if(red_something == 1 && switches_rd == 2){
+                    printf("Loading Bass...\n");
+                    FreeAudio(Notes);
+                    LoadBass(Notes);
+                    printf("Done Loading\n");
+                    instrument = 3;
+                }   
             }
         }
-        // Arduino Thread
+        // Animation Thread
         #pragma omp section
         {
             while(switches_rd != 1) {
@@ -219,6 +193,73 @@ int main() {
                         red_led_animation(fpga, 0, 10);
                     }
                     animation = 0;
+                }
+            }
+        }
+        // Arduino Thread
+        #pragma omp section
+        {
+            while(switches_rd != 1) {
+                if(read(fd, &aux, 1) > 0)
+                    buffer[i++] = aux;
+                if(i == 5) {
+                    i = 0;
+                    animation = 1;
+                    if(buffer[0] == '1'){
+                        Mix_PlayChannel(1, Notes[0], 0);
+                        if(instrument == 1){
+                            //falta colocar o nome da nota certa
+                            write(fpga, &hex_c, DISPLAY_R);
+                        } else if(instrument == 2){
+                            write(fpga, &hex_g, DISPLAY_R);
+                        } else if(instrument == 3){
+                            write(fpga, &hex_a, DISPLAY_R);
+                        }
+                    }
+                    if(buffer[1] == '1'){
+                        Mix_PlayChannel(1, Notes[1], 0);
+                        write(fpga, &hex_g, DISPLAY_R);
+                        if(instrument == 1){
+                            write(fpga, &hex_c, DISPLAY_R);
+                        } else if(instrument == 2){
+                            write(fpga, &hex_c, DISPLAY_R);
+                        } else if(instrument == 3){
+                            write(fpga, &hex_c, DISPLAY_R);
+                        }
+                    }
+                    if(buffer[2] == '1'){
+                        Mix_PlayChannel(1, Notes[2], 0);
+                        write(fpga, &hex_a, DISPLAY_R);
+                        if(instrument == 1){
+                            write(fpga, &hex_c, DISPLAY_R);
+                        } else if(instrument == 2){
+                            write(fpga, &hex_c, DISPLAY_R);
+                        } else if(instrument == 3){
+                            write(fpga, &hex_c, DISPLAY_R);
+                        }
+                    }
+                    if(buffer[3] == '1'){
+                        Mix_PlayChannel(1, Notes[3], 0);
+                        write(fpga, &hex_f, DISPLAY_R);
+                        if(instrument == 1){
+                            write(fpga, &hex_c, DISPLAY_R);
+                        } else if(instrument == 2){
+                            write(fpga, &hex_c, DISPLAY_R);
+                        } else if(instrument == 3){
+                            write(fpga, &hex_c, DISPLAY_R);             
+                        }
+                    }
+                    if(buffer[4] == '1'){
+                        Mix_PlayChannel(1, Notes[4], 0);
+                        write(fpga, &hex_f, DISPLAY_R);
+                        if(instrument == 1){
+                            write(fpga, &hex_c, DISPLAY_R);
+                        } else if(instrument == 2){
+                            write(fpga, &hex_c, DISPLAY_R);
+                        } else if(instrument == 3){
+                            write(fpga, &hex_c, DISPLAY_R);
+                        }
+                    }
                 }
             }
         }
@@ -253,11 +294,19 @@ void LoadDrums(Mix_Chunk **Notes) {
     Notes[4] = Mix_LoadWAV("Samples/drum1.aif");
 }
 
+void LoadBass(Mix_Chunk **Notes) {
+    Notes[0] = Mix_LoadWAV("Samples/upright_bass-a2.aif");
+    Notes[1] = Mix_LoadWAV("Samples/upright_bass-a3.aif");
+    Notes[2] = Mix_LoadWAV("Samples/upright_bass-c4.aif");
+    Notes[3] = Mix_LoadWAV("Samples/upright_bass-e2.aif");
+    Notes[4] = Mix_LoadWAV("Samples/upright_bass-e3.aif");
+}
+
 void LoadDrumsFPGA(Mix_Chunk **Notes) {
-    Notes[0] = Mix_LoadWAV("Samples/drum1.aif");
-    Notes[1] = Mix_LoadWAV("Samples/drum2.aif");
-    Notes[2] = Mix_LoadWAV("Samples/drum3.aif");
-    Notes[3] = Mix_LoadWAV("Samples/drum4.aif");
+    Notes[0] = Mix_LoadWAV("Samples/clap.aiff");
+    Notes[1] = Mix_LoadWAV("Samples/hat.aiff");
+    Notes[2] = Mix_LoadWAV("Samples/kick.aiff");
+    Notes[3] = Mix_LoadWAV("Samples/snare.aiff");
 }
 
 void FreeAudio(Mix_Chunk **Notes) {
