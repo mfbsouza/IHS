@@ -62,9 +62,11 @@ static ssize_t dev_read(struct file *filep, char *buf, size_t opt, loff_t *off) 
     switch(opt) {
         case DISPLAY_L:
             data = ioread32(display_l);
+            flag = 1;
             break;
         case DISPLAY_R:
             data = ioread32(display_r);
+            flag = 1;
             break;
         case SWITCHES:
             data = ioread32(switches_);
@@ -82,9 +84,11 @@ static ssize_t dev_read(struct file *filep, char *buf, size_t opt, loff_t *off) 
             break;
         case GREENLEDS:
             data = ioread32(green_leds);
+            flag = 1;
             break;
         case REDLEDS:
             data = ioread32(red_leds);
+            flag = 1;
             break;
         default:
             printk(KERN_ALERT "Invalid Option from Read().\n");
@@ -124,6 +128,7 @@ static ssize_t dev_write(struct file *filep, const char *buf, size_t opt, loff_t
             printk(KERN_ALERT "Invalid Option from Write().\n");
             return -1;
     }
+    printk(KERN_ALERT "WROTE: %d", data);
     return 4;
 }
 
