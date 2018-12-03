@@ -27,7 +27,7 @@ void delay(int num_of_mili);
 void red_led_on(int fpga, int n);
 void red_led_animation(int fpga, int x, int y);
 
-extern int int_to_d7(int);
+extern void led_on(int, int, int);
 
 int main() {
 
