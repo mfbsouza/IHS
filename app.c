@@ -35,7 +35,7 @@ int main() {
     Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048);
 
     /* General Purpose Variables */
-    char first_time, red_something = 0;
+    char first_time, red_something = 0, animation = 0;
     Mix_Chunk *Notes[NotesNUM];
     Mix_Chunk *FPGAdrums[4];
     // loading audios chuncks into the memory
@@ -52,6 +52,7 @@ int main() {
     /* Variables for Altera FPGA */
     int fpga;
     const char *altera = "/dev/de2i150_altera";
+    const uint32_t gabi = 0x4208FF4F;
     const uint32_t mem_trash = 0, hex_c = 0xFFFFFF46, hex_a = 0xFFFFFF08, hex_g = 0xFFFFFF42, hex_f = 0xFFFFFF0E;
     const uint32_t led_1 = 3 , led_2 = 12, led_3 = 48, led_4 = 192;
     // read variables
@@ -69,7 +70,7 @@ int main() {
         write(fpga, &mem_trash, DISPLAY_L);
     printf("Cleaing FPGA memory...\n");
     write(fpga, &mem_trash, GREENLEDS);
-    write(fpga, &mem_trash, DISPLAY_L);
+    write(fpga, &gabi, DISPLAY_L);
     write(fpga, &mem_trash, DISPLAY_R);
     write(fpga, &mem_trash, REDLEDS);
 
@@ -159,43 +160,65 @@ int main() {
                     LoadDrums(Notes);
                     printf("Done Loading\n");
                 }
+
+                // Arduino
+                if(read(fd, &aux, 1) > 0)
+                    buffer[i++] = aux;
+                if(i == 5) {
+                    i = 0;
+                    animation = 1;
+                    if(buffer[0] == '1'){
+                        Mix_PlayChannel(1, Notes[0], 0);
+                        write(fpga, &hex_c, DISPLAY_R);
+                        //red_led_animation(fpga, 1, 9);
+                        //red_led_on(fpga, 9);
+                    }
+                    if(buffer[1] == '1'){
+                        Mix_PlayChannel(1, Notes[1], 0);
+                        write(fpga, &hex_g, DISPLAY_R);
+                        //red_led_animation(fpga, 3, 12);
+                    }
+                    if(buffer[2] == '1'){
+                        Mix_PlayChannel(1, Notes[2], 0);
+                        write(fpga, &hex_a, DISPLAY_R);
+                        animation = 2;
+                        //red_led_animation(fpga, 2, 15);
+                    }
+                    if(buffer[3] == '1'){
+                        Mix_PlayChannel(1, Notes[3], 0);
+                        write(fpga, &hex_f, DISPLAY_R);
+                        //red_led_animation(fpga, 1, 8);
+                    }
+                    if(buffer[4] == '1'){
+                        Mix_PlayChannel(1, Notes[4], 0);
+                        write(fpga, &hex_f, DISPLAY_R);
+                        //red_led_animation(fpga, 0, 10);
+                    }
+                    //write(fpga, &mem_trash, REDLEDS);
+                }
             }
         }
         // Arduino Thread
         #pragma omp section
         {
             while(switches_rd != 1) {
-                if(read(fd, &aux, 1) > 0)
-                    buffer[i++] = aux;
-                if(i == 5) {
-                    i = 0;
+                if(animation == 1) {
                     if(buffer[0] == '1'){
-                        Mix_PlayChannel(1, Notes[0], 0);
-                        write(fpga, &hex_c, DISPLAY_R);
                         red_led_animation(fpga, 1, 9);
-                        //red_led_on(fpga, 9);
                     }
                     if(buffer[1] == '1'){
-                        Mix_PlayChannel(1, Notes[1], 0);
-                        write(fpga, &hex_g, DISPLAY_R);
                         red_led_animation(fpga, 3, 12);
                     }
                     if(buffer[2] == '1'){
-                        Mix_PlayChannel(1, Notes[2], 0);
-                        write(fpga, &hex_a, DISPLAY_R);
                         red_led_animation(fpga, 2, 15);
                     }
                     if(buffer[3] == '1'){
-                        Mix_PlayChannel(1, Notes[3], 0);
-                        write(fpga, &hex_f, DISPLAY_R);
                         red_led_animation(fpga, 1, 8);
                     }
                     if(buffer[4] == '1'){
-                        Mix_PlayChannel(1, Notes[4], 0);
-                        write(fpga, &hex_f, DISPLAY_R);
                         red_led_animation(fpga, 0, 10);
                     }
-                    //write(fpga, &mem_trash, REDLEDS);
+                    animation = 0;
                 }
             }
         }
