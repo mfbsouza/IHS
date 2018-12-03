@@ -3,13 +3,12 @@
 #include <unistd.h>
 #include <stdint.h>
 #include <fcntl.h>
-#include <math.h>
 #include <time.h>
 #include <termios.h>
 #include <omp.h>
 #include <SDL2/SDL_mixer.h>
 
-#define NotesNUM    4
+#define NotesNUM    5
 #define DISPLAY_L   1
 #define DISPLAY_R   2
 #define SWITCHES    3
@@ -17,31 +16,14 @@
 #define GREENLEDS   5
 #define REDLEDS     6
 
-// define hex codes for 7-segments display
-#define d7_0 0x40
-#define d7_1 0x79
-#define d7_2 0x24
-#define d7_3 0x30
-#define d7_4 0x19
-#define d7_5 0x12
-#define d7_6 0x02
-#define d7_7 0x78
-#define d7_8 0x00
-#define d7_9 0x18
-#define d7_A 0x08
-#define d7_B 0x00
-#define d7_C 0x46
-#define d7_D 0x40
-#define d7_E 0x06
-#define d7_F 0x0E
-#define d7_G 0x42
-#define d7_empty 0x7F
-
-
+/* Functions */
 void LoadGuitar(Mix_Chunk **Notes);
 void LoadDrums(Mix_Chunk **Notes);
 void FreeAudio(Mix_Chunk **Notes);
-void delay(int num_of_secs);
+void LoadDrumsFPGA(Mix_Chunk **Notes);
+void FreeAudioFPGA(Mix_Chunk **Notes);
+
+void delay(int num_of_mili);
 void red_led_on(int fpga, int n);
 void red_led_animation(int fpga, int x, int y);
 
@@ -54,12 +36,12 @@ int main() {
     Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048);
 
     /* General Purpose Variables */
-    int nl = 0;
+    char first_time;
     Mix_Chunk *Notes[NotesNUM];
-    Mix_Chunk *FPGAdrums[NotesNUM];
-    LoadDrums(FPGAdrums);
+    Mix_Chunk *FPGAdrums[4];
+    // loading audios chuncks into the memory
+    LoadDrumsFPGA(FPGAdrums);
     LoadGuitar(Notes);
-    //LoadDrums(Notes);
     
 	/* Variables for Serial Device */
 	int fd, i = 0, delay_msec = 500;
@@ -73,15 +55,24 @@ int main() {
     const char *altera = "/dev/de2i150_altera";
     const uint32_t mem_trash = 0, hex_c = 0xFFFFFF46, hex_a = 0xFFFFFF08, hex_g = 0xFFFFFF42, hex_f = 0xFFFFFF0E;
     const uint32_t led_1 = 3 , led_2 = 12, led_3 = 48, led_4 = 192;
-    uint32_t teste = 1, read_var = 0;
+    // read variables
+    uint32_t  pbuttons_rd = 0, switches_rd = 0;
 
     /* Opening & Setting Up FPGA */
+    printf("Opening FPGA...\n");
     fpga = open(altera, O_RDWR);
     if(fpga == -1)
         printf("Failed to Open Device: %s\n", altera);
     //first right is buggy so we write something to skip it
-    write(fpga, &mem_trash, DISPLAY_L);
+    printf("first time opening? (y,n) \n");
+    scanf("%c", &first_time);
+    if(first_time == 'y')
+        write(fpga, &mem_trash, DISPLAY_L);
+    printf("Cleaing FPGA memory...\n");
     write(fpga, &mem_trash, GREENLEDS);
+    write(fpga, &mem_trash, DISPLAY_L);
+    write(fpga, &mem_trash, DISPLAY_R);
+    write(fpga, &mem_trash, REDLEDS);
 
 	/* Opening Serial Device, Flags & Checking for Errors.
 
@@ -89,6 +80,7 @@ int main() {
        O_NOCTTY = The port never becomes the controlling terminal of the process 
        O_NDELAY = Use non-blocking I/O */
 
+    printf("Opening Arduino...\n");
 	fd = open(arduino, O_RDWR | O_NOCTTY | O_NDELAY);
 	if(fd == -1)
 		printf("Failed to open Device: %s\n", arduino);
@@ -124,47 +116,50 @@ int main() {
     if(tcsetattr(fd, TCSAFLUSH, &config) < 0)
         printf("Error while updating Device Configuration\n");
 
-    //testando
-    #pragma omp parallel sections num_threads(3)
+    printf("Done. Ready to go!\n");
+    // Threads main loop
+    #pragma omp parallel sections num_threads(2)
     {
+        // FPGA Thread
         #pragma omp section
         {
-            while(read_var != 1) {
-                if(read(fpga, &read_var, PUSHBUTTON)){
-                    if(read_var == 14){
+            while(switches_rd != 1) {
+                if(read(fpga, &pbuttons_rd, PUSHBUTTON)){
+                    if(pbuttons_rd == 14){
                         Mix_PlayChannel(2, FPGAdrums[3], 0);
                         write(fpga, &led_1, GREENLEDS);
                     }
-                    if(read_var == 13){
+                    if(pbuttons_rd == 13){
                         Mix_PlayChannel(2, FPGAdrums[2], 0);
                         write(fpga, &led_2, GREENLEDS);
                     }
-                    if(read_var == 11){
+                    if(pbuttons_rd == 11){
                         Mix_PlayChannel(2, FPGAdrums[1], 0);
                         write(fpga, &led_3, GREENLEDS);
                     }
-                    if(read_var == 7){
+                    if(pbuttons_rd == 7){
                         Mix_PlayChannel(2, FPGAdrums[0], 0);
                         write(fpga, &led_4, GREENLEDS);
                     }
                 }
-                if(read(fpga, &read_var, SWITCHES) && read_var == 4){
-                    printf("carregando Guitarra...\n");
+                if(read(fpga, &switches_rd, SWITCHES) && switches_rd == 4){
+                    printf("Loading Guitar...\n");
                     FreeAudio(Notes);
                     LoadGuitar(Notes);
-                    printf("Guitarra carregada com sucesso\n");
+                    printf("Done loading\n");
                 }
-                if(read(fpga, &read_var, SWITCHES) && read_var == 8){
-                    printf("carregando bateria...\n");
+                if(read(fpga, &switches_rd, SWITCHES) && switches_rd == 8){
+                    printf("Loading Drums...\n");
                     FreeAudio(Notes);
                     LoadDrums(Notes);
-                    printf("Bateria carregada com sucesso\n");
+                    printf("Done Loading\n");
                 }
             }
         }
+        // Arduino Thread
         #pragma omp section
         {
-            while(read_var != 1) {
+            while(switches_rd != 1) {
                 if(read(fd, &aux, 1) > 0)
                     buffer[i++] = aux;
                 if(i == 5) {
@@ -190,39 +185,26 @@ int main() {
                         red_led_animation(fpga, 1, 8);
                     }
                     if(buffer[4] == '1'){
-                        delay_msec += 100;
+                        Mix_PlayChannel(1, Notes[4], 0);
+                        write(fpga, &hex_f, DISPLAY_R);
+                        red_led_animation(fpga, 0, 10);
                     }
+                    write(fpga &mem_trash, REDLEDS);
                 }
             }
         }
-        // #pragma omp section
-        // {
-        //     while(read_var != 1) {
-        //         // scanf("%d", &nl);
-        //         // teste = red_led_on(nl);
-        //         // printf("%d/n", teste);
-        //         // write(fpga, &teste, REDLEDS);
-
-        //         // if(delay_msec == 1100){
-        //         //     delay_msec = 100;
-        //         // }
-        //         // if(teste == 131072){
-        //         //         teste = 1;
-        //         //     } else {
-        //         //         teste = teste << 1;
-        //         //     }
-        //         //     write(fpga, &teste, REDLEDS);
-        //         //     delay(delay_msec);
-        //     }
-        // }
     }
 
-    printf("fechando o programa...\n");
+    printf("Closing all threads...\n");
     /* Release Resources */
+    printf("Cleaning memory...\n");
     FreeAudio(Notes);
+    FreeAudioFPGA(FPGAdrums);
     Mix_CloseAudio();
     Mix_Quit();
+    close(fpga);
     close(fd);
+    printf("Closing main program...\n");
 	return 0;
 }
 
@@ -231,12 +213,18 @@ void LoadGuitar(Mix_Chunk **Notes) {
     Notes[1] = Mix_LoadWAV("Samples/G.aif");
     Notes[2] = Mix_LoadWAV("Samples/Am.aif");
     Notes[3] = Mix_LoadWAV("Samples/F.aif");
-    //Notes[4] = Mix_LoadWAV("Samples/G.aif"); // sol
-    //Notes[5] = Mix_LoadWAV("Samples/A.aif"); // lá
-    //Notes[6] = Mix_LoadWAV("Samples/B.aif"); // si
+    Notes[4] = Mix_LoadWAV("Samples/B.aif");
 }
 
 void LoadDrums(Mix_Chunk **Notes) {
+    Notes[0] = Mix_LoadWAV("Samples/drum1.aif");
+    Notes[1] = Mix_LoadWAV("Samples/drum2.aif");
+    Notes[2] = Mix_LoadWAV("Samples/drum3.aif");
+    Notes[3] = Mix_LoadWAV("Samples/drum4.aif");
+    Notes[4] = Mix_LoadWAV("Samples/drum1.aif");
+}
+
+void LoadDrumsFPGA(Mix_Chunk **Notes) {
     Notes[0] = Mix_LoadWAV("Samples/drum1.aif");
     Notes[1] = Mix_LoadWAV("Samples/drum2.aif");
     Notes[2] = Mix_LoadWAV("Samples/drum3.aif");
@@ -248,12 +236,16 @@ void FreeAudio(Mix_Chunk **Notes) {
     for(i = 0; i < NotesNUM; i++)
         Mix_FreeChunk(Notes[i]);
 }
+void FreeAudioFPGA(Mix_Chunk **Notes) {
+    int i;
+    for(i = 0; i < 4; i++)
+        Mix_FreeChunk(Notes[i]);
+}
 
-void delay(int num_of_secs) {
-    int milli_sec = 1000*num_of_secs;
+void delay(int num_of_mili) {
+    int milli_sec = 1000*num_of_mili;
     clock_t start_time = clock();
-    while(clock() < start_time + milli_sec)
-        ;
+    while(clock() < start_time + milli_sec);
 }
 
 void red_led_on(int fpga, int n){
