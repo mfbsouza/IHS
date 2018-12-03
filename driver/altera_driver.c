@@ -94,6 +94,7 @@ static ssize_t dev_read(struct file *filep, char *buf, size_t opt, loff_t *off) 
     if(flag == 1) {
         // send data to user space
         copy_to_user(buf, &data, sizeof(uint32_t));
+        printk(KERN_ALERT "SEND: %d", data);
         flag = 0; // reset flag
         return 4; // red 4 bytes
     } else {

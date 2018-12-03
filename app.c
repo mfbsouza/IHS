@@ -27,7 +27,6 @@ void delay(int num_of_mili);
 void red_led_on(int fpga, int n);
 void red_led_animation(int fpga, int x, int y);
 
-extern void led_on(int, int, int);
 
 int main() {
 
@@ -36,7 +35,7 @@ int main() {
     Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048);
 
     /* General Purpose Variables */
-    char first_time;
+    char first_time, red_something = 0;
     Mix_Chunk *Notes[NotesNUM];
     Mix_Chunk *FPGAdrums[4];
     // loading audios chuncks into the memory
@@ -44,7 +43,7 @@ int main() {
     LoadGuitar(Notes);
     
 	/* Variables for Serial Device */
-	int fd, i = 0, delay_msec = 500;
+	int fd, i = 0;
     struct termios config;
     char buffer[5];
     unsigned char aux;
@@ -124,6 +123,12 @@ int main() {
         #pragma omp section
         {
             while(switches_rd != 1) {
+                // gambiarra
+                if(read(fpga, &switches_rd, SWITCHES) > 0){
+                    red_something = 1;
+                } else {
+                    red_something = 0;
+                }
                 if(read(fpga, &pbuttons_rd, PUSHBUTTON)){
                     if(pbuttons_rd == 14){
                         Mix_PlayChannel(2, FPGAdrums[3], 0);
@@ -142,13 +147,13 @@ int main() {
                         write(fpga, &led_4, GREENLEDS);
                     }
                 }
-                if(read(fpga, &switches_rd, SWITCHES) && switches_rd == 4){
+                if(red_something == 1 && switches_rd == 4){
                     printf("Loading Guitar...\n");
                     FreeAudio(Notes);
                     LoadGuitar(Notes);
                     printf("Done loading\n");
                 }
-                if(read(fpga, &switches_rd, SWITCHES) && switches_rd == 8){
+                if(red_something == 1 && switches_rd == 8){
                     printf("Loading Drums...\n");
                     FreeAudio(Notes);
                     LoadDrums(Notes);
@@ -168,6 +173,7 @@ int main() {
                         Mix_PlayChannel(1, Notes[0], 0);
                         write(fpga, &hex_c, DISPLAY_R);
                         red_led_animation(fpga, 1, 9);
+                        //red_led_on(fpga, 9);
                     }
                     if(buffer[1] == '1'){
                         Mix_PlayChannel(1, Notes[1], 0);
@@ -189,7 +195,7 @@ int main() {
                         write(fpga, &hex_f, DISPLAY_R);
                         red_led_animation(fpga, 0, 10);
                     }
-                    write(fpga &mem_trash, REDLEDS);
+                    //write(fpga, &mem_trash, REDLEDS);
                 }
             }
         }
@@ -242,12 +248,6 @@ void FreeAudioFPGA(Mix_Chunk **Notes) {
         Mix_FreeChunk(Notes[i]);
 }
 
-void delay(int num_of_mili) {
-    int milli_sec = 1000*num_of_mili;
-    clock_t start_time = clock();
-    while(clock() < start_time + milli_sec);
-}
-
 void red_led_on(int fpga, int n){
     n = 18 - n;
     int a = 262143;
@@ -255,14 +255,21 @@ void red_led_on(int fpga, int n){
     write(fpga, &a, REDLEDS);
 }
 
+void delay(int num_of_mili) {
+    int milli_sec = 1000*num_of_mili;
+    clock_t start_time = clock();
+    while(clock() < start_time + milli_sec);
+}
+
 void red_led_animation(int fpga, int x, int y){
     int i;
-    int delay_time = 1000 / (2*(y-x));
+    int delay_time = 800 / (2*(y-x));
+    //int delay_time = 50;
     for (i=x; i<=y; i++){
         red_led_on(fpga, i);
         delay(delay_time);
     }
-    for (i=y; i>=x; i--){
+    for (i=(y-1); i>=0; i--){
         red_led_on(fpga, i);
         delay(delay_time);
     }
