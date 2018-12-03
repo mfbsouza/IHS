@@ -27,6 +27,7 @@ void FreeAudioFPGA(Mix_Chunk **Notes);
 void delay(int num_of_mili);
 void red_led_on(int fpga, int n);
 void red_led_animation(int fpga, int x, int y);
+extern void teste(int, uint32_t *, int, int);
 
 
 int main() {
@@ -36,7 +37,7 @@ int main() {
     Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048);
 
     /* General Purpose Variables */
-    char first_time, red_something = 0, animation = 0, instrument = 2;
+    char red_something = 0, animation = 0, instrument = 2;
     Mix_Chunk *Notes[NotesNUM];
     Mix_Chunk *FPGAdrums[4];
     // loading audios chuncks into the memory
@@ -53,11 +54,11 @@ int main() {
     /* Variables for Altera FPGA */
     int fpga;
     const char *altera = "/dev/de2i150_altera";
-    const uint32_t gabi = 0x4208004F;
     const uint32_t mem_trash = 0, hex_c = 0xFFFFFF46, hex_a = 0xFFFFFF08, hex_g = 0xFFFFFF42, hex_f = 0xFFFFFF0E;
+    const uint32_t hex_b = 0xFFFFFF00, hex_e = 0xFFFFFF06, hex_d = 0xFFFFFF40, hex_empty = 0xFFFFFF7F;
     const uint32_t led_1 = 3 , led_2 = 12, led_3 = 48, led_4 = 192;
     // read variables
-    uint32_t  pbuttons_rd = 0, switches_rd = 0;
+    uint32_t  pbuttons_rd = 0, switches_rd = 0, anim_rd = 0;
 
     /* Opening & Setting Up FPGA */
     printf("Opening FPGA...\n");
@@ -65,13 +66,10 @@ int main() {
     if(fpga == -1)
         printf("Failed to Open Device: %s\n", altera);
     //first right is buggy so we write something to skip it
-    printf("first time opening? (y,n) \n");
-    scanf("%c", &first_time);
-    if(first_time == 'y')
-        write(fpga, &mem_trash, DISPLAY_L);
-    printf("Cleaing FPGA memory...\n");
+    printf("Cleaning FPGA memory...\n");
     write(fpga, &mem_trash, GREENLEDS);
-    write(fpga, &gabi, DISPLAY_L);
+    write(fpga, &mem_trash, DISPLAY_L);
+    write(fpga, &led_4, DISPLAY_L);
     write(fpga, &mem_trash, DISPLAY_R);
     write(fpga, &mem_trash, REDLEDS);
 
@@ -135,6 +133,7 @@ int main() {
                     if(pbuttons_rd == 14){
                         Mix_PlayChannel(2, FPGAdrums[3], 0);
                         write(fpga, &led_1, GREENLEDS);
+                        //teste(fpga, &anim_rd, DISPLAY_L, 2000);
                     }
                     if(pbuttons_rd == 13){
                         Mix_PlayChannel(2, FPGAdrums[2], 0);
@@ -168,6 +167,7 @@ int main() {
                     FreeAudio(Notes);
                     LoadBass(Notes);
                     printf("Done Loading\n");
+                    //write(fpga, )
                     instrument = 3;
                 }   
             }
@@ -211,7 +211,7 @@ int main() {
                             //falta colocar o nome da nota certa
                             write(fpga, &hex_c, DISPLAY_R);
                         } else if(instrument == 2){
-                            write(fpga, &hex_g, DISPLAY_R);
+                            write(fpga, &hex_empty, DISPLAY_R);
                         } else if(instrument == 3){
                             write(fpga, &hex_a, DISPLAY_R);
                         }
@@ -220,20 +220,20 @@ int main() {
                         Mix_PlayChannel(1, Notes[1], 0);
                         write(fpga, &hex_g, DISPLAY_R);
                         if(instrument == 1){
-                            write(fpga, &hex_c, DISPLAY_R);
+                            write(fpga, &hex_g, DISPLAY_R);
                         } else if(instrument == 2){
-                            write(fpga, &hex_c, DISPLAY_R);
+                            write(fpga, &hex_empty, DISPLAY_R);
                         } else if(instrument == 3){
-                            write(fpga, &hex_c, DISPLAY_R);
+                            write(fpga, &hex_a, DISPLAY_R);
                         }
                     }
                     if(buffer[2] == '1'){
                         Mix_PlayChannel(1, Notes[2], 0);
                         write(fpga, &hex_a, DISPLAY_R);
                         if(instrument == 1){
-                            write(fpga, &hex_c, DISPLAY_R);
+                            write(fpga, &hex_a, DISPLAY_R);
                         } else if(instrument == 2){
-                            write(fpga, &hex_c, DISPLAY_R);
+                            write(fpga, &hex_empty, DISPLAY_R);
                         } else if(instrument == 3){
                             write(fpga, &hex_c, DISPLAY_R);
                         }
@@ -242,22 +242,22 @@ int main() {
                         Mix_PlayChannel(1, Notes[3], 0);
                         write(fpga, &hex_f, DISPLAY_R);
                         if(instrument == 1){
-                            write(fpga, &hex_c, DISPLAY_R);
+                            write(fpga, &hex_f, DISPLAY_R);
                         } else if(instrument == 2){
-                            write(fpga, &hex_c, DISPLAY_R);
+                            write(fpga, &hex_empty, DISPLAY_R);
                         } else if(instrument == 3){
-                            write(fpga, &hex_c, DISPLAY_R);             
+                            write(fpga, &hex_e, DISPLAY_R);             
                         }
                     }
                     if(buffer[4] == '1'){
                         Mix_PlayChannel(1, Notes[4], 0);
                         write(fpga, &hex_f, DISPLAY_R);
                         if(instrument == 1){
-                            write(fpga, &hex_c, DISPLAY_R);
+                            write(fpga, &hex_b, DISPLAY_R);
                         } else if(instrument == 2){
-                            write(fpga, &hex_c, DISPLAY_R);
+                            write(fpga, &hex_empty, DISPLAY_R);
                         } else if(instrument == 3){
-                            write(fpga, &hex_c, DISPLAY_R);
+                            write(fpga, &hex_e, DISPLAY_R);
                         }
                     }
                 }
