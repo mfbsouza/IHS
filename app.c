@@ -72,9 +72,9 @@ int main() {
         printf("Failed to Open Device: %s\n", altera);
     //first right is buggy so we write something to skip it
     printf("Cleaning FPGA memory...\n");
-    write(fpga, &empty, GREENLEDS);
     write(fpga, &empty, DISPLAY_L);
     write(fpga, &HEX_3, DISPLAY_L);
+    write(fpga, &empty, GREENLEDS);
     write(fpga, &HEX_CLEAN, DISPLAY_R);
     write(fpga, &empty, REDLEDS);
 
@@ -218,16 +218,16 @@ int main() {
                 }
                 if(animation_2 == 1){
                     if(pbuttons_rd == 14){
-                        led_animation(fpga, 5, &green_led_on);
+                        //led_animation(fpga, 5, &green_led_on);
                     }
                     if(pbuttons_rd == 13){
-                        led_animation(fpga, 7, &green_led_on);
+                        //led_animation(fpga, 7, &green_led_on);
                     }
                     if(pbuttons_rd == 11){
-                        led_animation(fpga, 3, &green_led_on);
+                        //led_animation(fpga, 3, &green_led_on);
                     }
                     if(pbuttons_rd == 7){
-                        led_animation(fpga, 4, &green_led_on);
+                        //led_animation(fpga, 4, &green_led_on);
                     }
                     animation_2 = 0;
                 }
