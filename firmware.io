@@ -1,4 +1,5 @@
 /* Variables */
+
 int ButtonStates[] = {0,0,0,0,0};
 int LastStates[] = {0,0,0,0,0};
 int gambiarra = 0;
