@@ -13,7 +13,6 @@ PWD := $(shell pwd)
 # Flags
 CXXFLAGS += -Wall -fopenmp
 LDFLAGS += -L/usr/local/lib -lSDL2 -lSDL2_mixer -fopenmp
-#LDLIBS += -lm
 
 .PHONY: all clean
 
@@ -34,6 +33,7 @@ $(OBJ_DIR)/app.o: app.c
 #
 #rm -rf $(OBJ_DIR)/.tmp_versions $(OBJ_DIR)/modules.order $(OBJ_DIR)/Module.symvers
 #rm -rf $(OBJ_DIR)/.altera_driver.ko.cmd $(OBJ_DIR)/.altera_driver.mod.o.cmd $(OBJ_DIR)/.altera_driver.o.cmd
+
 clean:
 	rm -rf $(OBJ_DIR)/*
 	rm $(EXE)

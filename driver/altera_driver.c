@@ -128,7 +128,7 @@ static ssize_t dev_write(struct file *filep, const char *buf, size_t opt, loff_t
             printk(KERN_ALERT "Invalid Option from Write().\n");
             return -1;
     }
-    printk(KERN_ALERT "WROTE: %d", data);
+    //printk(KERN_ALERT "WROTE: %d", data);
     return 4;
 }
 
