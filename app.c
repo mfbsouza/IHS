@@ -72,11 +72,19 @@ int main() {
         printf("Failed to Open Device: %s\n", altera);
     //first write is buggy so we write something to skip it
     printf("Cleaning FPGA memory...\n");
+<<<<<<< HEAD
     write(fpga, &mem_trash, DISPLAY_L);
     write(fpga, &hex_2, DISPLAY_L);
     write(fpga, &mem_trash, GREENLEDS);
     write(fpga, &mem_trash, DISPLAY_R);
     write(fpga, &mem_trash, REDLEDS);
+=======
+    write(fpga, &empty, DISPLAY_L);
+    write(fpga, &HEX_3, DISPLAY_L);
+    write(fpga, &empty, GREENLEDS);
+    write(fpga, &HEX_CLEAN, DISPLAY_R);
+    write(fpga, &empty, REDLEDS);
+>>>>>>> e8ab17311612af3b1c6ca0b5a69d0133161d502e
 
 	/* Opening Serial Device, Flags & Checking for Errors.
 
@@ -208,6 +216,24 @@ int main() {
                     }
                     animation = 0;
                 }
+<<<<<<< HEAD
+=======
+                if(animation_2 == 1){
+                    if(pbuttons_rd == 14){
+                        //led_animation(fpga, 5, &green_led_on);
+                    }
+                    if(pbuttons_rd == 13){
+                        //led_animation(fpga, 7, &green_led_on);
+                    }
+                    if(pbuttons_rd == 11){
+                        //led_animation(fpga, 3, &green_led_on);
+                    }
+                    if(pbuttons_rd == 7){
+                        //led_animation(fpga, 4, &green_led_on);
+                    }
+                    animation_2 = 0;
+                }
+>>>>>>> e8ab17311612af3b1c6ca0b5a69d0133161d502e
             }
         }
         // Arduino Thread
